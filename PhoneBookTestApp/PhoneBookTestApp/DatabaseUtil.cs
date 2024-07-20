@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Data.SQLite;
+using MongoDB.Driver.Core.Configuration;
 
 namespace PhoneBookTestApp
 {
@@ -49,6 +50,26 @@ namespace PhoneBookTestApp
             return dbConnection;
         }
 
+        public static void InsertPerson(Person person)
+        {
+            try
+            {
+                SQLiteCommand command = new SQLiteCommand(
+                    "INSERT INTO PHONEBOOK (NAME, PHONENUMBER, ADDRESS) VALUES (@Name, @PhoneNumber, @Address)",
+                    GetConnection());
+                command.Parameters.AddWithValue("@Name", person.name);
+                command.Parameters.AddWithValue("@PhoneNumber", person.phoneNumber);
+                command.Parameters.AddWithValue("@Address", person.address);
+
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error inserting person into database: {ex.Message}");
+                throw;
+            }
+        }
+
         public static void CleanUp()
         {
             var dbConnection = new SQLiteConnection("Data Source= MyDatabase.sqlite;Version=3;");
@@ -56,14 +77,20 @@ namespace PhoneBookTestApp
 
             try
             {
-                SQLiteCommand command =
-                    new SQLiteCommand(
-                        "drop table PHONEBOOK",
-                        dbConnection);
-                command.ExecuteNonQuery();
+                // Check if the PHONEBOOK table exists
+                SQLiteCommand checkTableCommand = new SQLiteCommand("SELECT name FROM sqlite_master WHERE type='table' AND name='PHONEBOOK';", dbConnection);
+                var tableName = checkTableCommand.ExecuteScalar();
+
+                if (tableName != null && tableName.ToString() == "PHONEBOOK")
+                {
+                    // Table exists, so drop it
+                    SQLiteCommand dropTableCommand = new SQLiteCommand("DROP TABLE PHONEBOOK;", dbConnection);
+                    dropTableCommand.ExecuteNonQuery();
+                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error cleaning up database: {ex.Message}");
                 throw;
             }
             finally
@@ -71,5 +98,6 @@ namespace PhoneBookTestApp
                 dbConnection.Close();
             }
         }
+
     }
 }
